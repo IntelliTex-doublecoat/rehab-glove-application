@@ -1,0 +1,2 @@
+- _Arduino code_: uploaded to the ESP32 processor, send data to Unity
+- _Unity project_: implemented on Unity 2021.2.19f1c1, build receive data from the processor and process the game. The communication between the processor can be wireless (via WiFi, by building a server on the Unity; or using the USB-C cable's serial communication). We tried both methods, and the code here demonstrates the serial communication solution, which can guarantee a more robust connection and better data transmission quality.
