@@ -1,19 +1,22 @@
 using UnityEngine;
 using UnityEngine.UI;
+using System.Collections;
+using System.IO.Ports;
+
 
 public class RabbitJump : MonoBehaviour
 {
-    public float jumpHeight = 2f;    // 跳跃的高度
-    public float jumpDistance = 1.1f;  // 跳跃的距离
-    public float jumpLongDistance = 2f;  // 长跳跃的距离
+    public float jumpHeight = 2f;    // jump height
+    public float jumpDistance = 1.1f;  // jump distance
+    public float jumpLongDistance = 2f;  // long jump distance
 
-    public float holdDuration = 6f;   // 按住空格键的持续时间
-    public float jumpDuration = 2f;  // 跳跃的持续时间
-    public float winJumpDuration = 2f;  // 跳跃的持续时间
+    public float holdDuration = 6f;   // hold duration
+    public float jumpDuration = 2f;
+    public float winJumpDuration = 2f;
 
-    public float rotDuration;  // 跳跃的持续时间
+    public float rotDuration;
 
-    public CircularProgressBar progressBarFill; // 圆形进度条的填充部分，拖拽进来
+    public CircularProgressBar progressBarFill;
     private GameController gameController;
     private float winJumpStartTime;
 
@@ -28,59 +31,122 @@ public class RabbitJump : MonoBehaviour
     private Vector3 jumpStartPos;
     private Quaternion jumpStartRotation;
     private bool jumping = false;
+    private bool rotateLeft = false;
+    private bool rotateRight = false;
+    private bool longJumping = false;
+
+
     private bool winJumping = false;
 
     private float jumpStartedTime;
     public int currentSeqNum = 0;
 
-    public ParticleSystem particleSystem; // 将 Particle System 组件引用拖放到这里
+    public ParticleSystem particleSystem;
 
+    SerialPort stream = new SerialPort("/dev/cu.usbmodem1421", 9600); // customize based on the serail port
+
+    public int handState = 0; // 0: normal pos; 1: left turn gesture; 2: right turn gesture; 3: slight hold gesture; 4: stretch (large) hold gesture
 
     void Start()
     {
         gameController = GetComponent<GameController>();
         jumpStartRotation = transform.rotation;
+
+        stream.Open(); // Open the Serial Stream
     }
+
 
     void Update()
     {
-        if (Input.GetKey(KeyCode.Space))
+        string value = stream.Readline();
+        handState = int.Parse(value);
+
+        if (handState != 0)
         {
-            timeHoldingSpace += Time.deltaTime;
-
-            // 更新进度条填充的显示
-            float progress = Mathf.Clamp01(timeHoldingSpace / holdDuration);
-            progressBarFill.Progress = Mathf.Clamp01(progress); // 限制在0到1之间
-
-            // 如果按住了6秒以上并且尚未跳跃，则开始跳跃
-            if (timeHoldingSpace >= holdDuration && !jumpStarted)
+            if (handState == 1)
             {
-                jumpStarted = true;
-                jumpStartPos = transform.position;
-                jumpStartRotation = transform.Find("rabbit").rotation * Quaternion.Euler(0f, 90f, 0f);
-                jumpStartedTime = Time.time;
-                jumping = true;
+                timeHoldingSpace += Time.deltaTime;
+                float progress = Mathf.Clamp01(timeHoldingSpace / holdDuration);
+                progressBarFill.Progress = Mathf.Clamp01(progress); // restrict to [0,1]
+
+                // if hold for certain duration and have not yet started to jump
+                if (timeHoldingSpace >= holdDuration && !jumpStarted)
+                {
+                    jumpStarted = true;
+                    jumpStartPos = transform.position;
+                    jumpStartRotation = transform.Find("rabbit").rotation * Quaternion.Euler(0f, 90f, 0f);
+                    jumpStartedTime = Time.time;
+                    rotateLeft = true;
+                }
+            }
+            else if (handState == 2)
+            {
+                timeHoldingSpace += Time.deltaTime;
+                float progress = Mathf.Clamp01(timeHoldingSpace / holdDuration);
+                progressBarFill.Progress = Mathf.Clamp01(progress); // restrict to [0,1]
+
+                // if hold for certain duration and have not yet started to jump
+                if (timeHoldingSpace >= holdDuration && !jumpStarted)
+                {
+                    jumpStarted = true;
+                    jumpStartPos = transform.position;
+                    jumpStartRotation = transform.Find("rabbit").rotation * Quaternion.Euler(0f, 90f, 0f);
+                    jumpStartedTime = Time.time;
+                    rotateRight = true;
+                }
+            }
+            else if (handState == 3)
+            {
+                timeHoldingSpace += Time.deltaTime;
+                float progress = Mathf.Clamp01(timeHoldingSpace / holdDuration);
+                progressBarFill.Progress = Mathf.Clamp01(progress); // restrict to [0,1]
+
+                // if hold for certain duration and have not yet started to jump
+                if (timeHoldingSpace >= holdDuration && !jumpStarted)
+                {
+                    jumpStarted = true;
+                    jumpStartPos = transform.position;
+                    jumpStartRotation = transform.Find("rabbit").rotation * Quaternion.Euler(0f, 90f, 0f);
+                    jumpStartedTime = Time.time;
+                    jumping = true;
+                }
+            }
+            else if (handState == 4)
+            {
+                timeHoldingSpace += Time.deltaTime;
+                float progress = Mathf.Clamp01(timeHoldingSpace / holdDuration);
+                progressBarFill.Progress = Mathf.Clamp01(progress); // restrict to [0,1]
+
+                // if hold for certain duration and have not yet started to jump
+                if (timeHoldingSpace >= holdDuration && !jumpStarted)
+                {
+                    jumpStarted = true;
+                    jumpStartPos = transform.position;
+                    jumpStartRotation = transform.Find("rabbit").rotation * Quaternion.Euler(0f, 90f, 0f);
+                    jumpStartedTime = Time.time;
+                    longJumping = true;
+                }
             }
         }
         else
         {
             timeHoldingSpace = 0f;
             jumpStarted = false;
-            progressBarFill.Progress = 0; // 重置进度条
+            progressBarFill.Progress = 0; // reset progress bar
         }
 
-        // 短跳跃情况
+        // short jump
         if (jumping && (currentSeqNum == 0 || currentSeqNum == 2))
         {
             float normalizedTime = (Time.time - jumpStartedTime) / jumpDuration;
             float yOffset = Mathf.Sin(normalizedTime * Mathf.PI) * jumpHeight;
             float xOffset = normalizedTime * jumpDistance;
 
-            Vector3 jumpDirection = jumpStartRotation * Vector3.forward; // 基于起跳时的旋转方向
+            Vector3 jumpDirection = jumpStartRotation * Vector3.forward;
             Vector3 newPosition = jumpStartPos + jumpDirection * xOffset + Vector3.up * yOffset;
             transform.position = newPosition;
 
-            if (normalizedTime >= 1f) //跳到了
+            if (normalizedTime >= 1f)
             {
                 jumping = false;
                 gameController.ChangeImage();
@@ -88,98 +154,94 @@ public class RabbitJump : MonoBehaviour
             }
         }
 
-        // 转向情况
-        if (jumping && currentSeqNum == 1)
+        // rotate
+        if (rotateLeft && currentSeqNum == 1)
         {
             float normalizedTime = (Time.time - jumpStartedTime) / rotDuration;
 
-            // 计算旋转角度
+            // calculate rotation angle
             float rotationAngle = 60f;
 
-            // 通过子物体的名称获取子物体的引用，只旋转兔子
+            // only rotate the rabbit
             Transform rabbitTransform = transform.Find("rabbit");
             // Debug.Log(rabbitTransform.rotation.eulerAngles.y);
 
-
-            // 基于当前旋转进行旋转
             // Quaternion targetRotation = Quaternion.Euler(0f, rotationAngle, 0f);
             // rabbitTransform.rotation = Quaternion.Lerp(rabbitTransform.rotation, targetRotation, normalizedTime);
 
-            // 计算旋转角度
+            // calculate rotation angle
             float currentRotationAngle = Mathf.Lerp(120f, rotationAngle, normalizedTime);
 
-            // 计算旋转
+            // calculate rotation
             Quaternion currentRotation = Quaternion.Euler(0f, currentRotationAngle, 0f);
 
-            // 应用旋转
+            // implement rotation
             rabbitTransform.rotation = currentRotation;
 
 
-            if (normalizedTime >= 1f) // 旋转完成
+            if (normalizedTime >= 1f) // rotate end
             {
-                jumping = false;
+                rotateLeft = false;
                 gameController.ChangeImage();
                 currentSeqNum++;
             }
         }
 
-        // 转向情况2
-        if (jumping && currentSeqNum == 3)
+        // rotate case 2
+        if (rotateRight && currentSeqNum == 3)
         {
             float normalizedTime = (Time.time - jumpStartedTime) / rotDuration;
 
-            // 计算旋转角度
+            // calcu rotation angle
             float rotationAngle = 120f;
 
-            // 通过子物体的名称获取子物体的引用，只旋转兔子
+            // rotate only the rabbit
             Transform rabbitTransform = transform.Find("rabbit");
             // Debug.Log(rabbitTransform.rotation.eulerAngles.y);
 
-
-            // 基于当前旋转进行旋转
             // Quaternion targetRotation = Quaternion.Euler(0f, rotationAngle, 0f);
             // rabbitTransform.rotation = Quaternion.Lerp(rabbitTransform.rotation, targetRotation, normalizedTime);
 
-            // 计算旋转角度
+            // calcu rotation angle
             float currentRotationAngle = Mathf.Lerp(60f, rotationAngle, normalizedTime);
 
-            // 计算旋转
+            // calcu rotation
             Quaternion currentRotation = Quaternion.Euler(0f, currentRotationAngle, 0f);
 
-            // 应用旋转
+            // apply rotation
             rabbitTransform.rotation = currentRotation;
 
 
-            if (normalizedTime >= 1f) // 旋转完成
+            if (normalizedTime >= 1f) // rotation finished
             {
-                jumping = false;
+                rotateRight = false;
                 gameController.ChangeImage();
                 currentSeqNum++;
             }
         }
 
-        // 长跳跃情况
-        if (jumping && currentSeqNum == 4)
+        // long jump
+        if (longJumping && currentSeqNum == 4)
         {
             float normalizedTime = (Time.time - jumpStartedTime) / jumpDuration;
             float yOffset = Mathf.Sin(normalizedTime * Mathf.PI) * jumpHeight;
             float xOffset = normalizedTime * jumpLongDistance;
 
-            Vector3 jumpDirection = jumpStartRotation * Vector3.forward; // 基于起跳时的旋转方向
+            Vector3 jumpDirection = jumpStartRotation * Vector3.forward;
             Vector3 newPosition = jumpStartPos + jumpDirection * xOffset + Vector3.up * yOffset;
             transform.position = newPosition;
 
-            if (normalizedTime >= 1f) //跳到了
+            if (normalizedTime >= 1f) //arrived
             {
-                jumping = false;
+                longJumping = false;
                 gameController.HideImage();
                 // currentSeqNum++;
                 winJumping = true;
                 winJumpStartTime = Time.time;
                 winOriginalPosition = transform.Find("rabbit").position;
                 winOriginalRotation = transform.Find("rabbit").rotation;
-                
-                // 播放粒子效果
+
+                // play particle effect
                 if (particleSystem != null)
                 {
                     particleSystem.Play();
@@ -195,21 +257,21 @@ public class RabbitJump : MonoBehaviour
 
             if (normalizedTime <= 1f)
             {
-                // 计算上升和下降的高度
+                // calcu up/down distance
                 float yOffset = Mathf.Sin(normalizedTime * Mathf.PI) * winJumpHeight;
                 Vector3 newPosition = winOriginalPosition + Vector3.up * yOffset;
 
-                // 计算旋转
+                // calcu rotate
                 float rotationAngle = rotationAmount * normalizedTime;
                 Quaternion newRotation = winOriginalRotation * Quaternion.Euler(0f, rotationAngle, 0f);
 
-                // 应用上升和旋转
+                // apply rise and rotate
                 transform.Find("rabbit").position = newPosition;
                 transform.Find("rabbit").rotation = newRotation;
             }
             else
             {
-                // 重置位置和旋转
+                // reset
                 winJumping = false;
                 transform.Find("rabbit").position = winOriginalPosition;
                 transform.Find("rabbit").rotation = winOriginalRotation;
@@ -217,4 +279,7 @@ public class RabbitJump : MonoBehaviour
         }
 
     }
+
+
 }
+

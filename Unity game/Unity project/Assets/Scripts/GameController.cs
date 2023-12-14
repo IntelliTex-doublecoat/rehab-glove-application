@@ -5,13 +5,13 @@ using UnityEngine.UI;
 
 public class GameController : MonoBehaviour
 {
-    public Image moveImg;           // hand gesture
-    public Image rabImg;           // rabbit
-    public Image arrow;           // arrow
+    public Image moveImg;           // 手势动作图片
+    public Image rabImg;           // 兔子动作图片
+    public Image arrow;           // 箭头图片
 
 
-    public Sprite[] moveSeq;  // move pic sequence
-    public Sprite[] rabSeq;  // rab move
+    public Sprite[] moveSeq;  // move图片序列
+    public Sprite[] rabSeq;  // rab动作图片序列
     public int currentSeqNum = 0;
 
 

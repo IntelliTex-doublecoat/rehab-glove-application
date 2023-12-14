@@ -5,7 +5,7 @@ using UnityEngine.UI;
 
 public class CircularProgressBar : MonoBehaviour
 {
-    public Image fillImage; 
+    public Image fillImage;  // 圆形填充的Image组件
 
     public float Progress
     {
